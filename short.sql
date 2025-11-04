@@ -6,8 +6,7 @@ CREATE TABLE IF NOT EXISTS links (
   `ua` text,
   `ip` text,
   `status` int,
-  `create_time` DATE,
-  `expire_time` DATE
+  `create_time` DATE
 );
 DROP TABLE IF EXISTS logs;
 CREATE TABLE IF NOT EXISTS logs (

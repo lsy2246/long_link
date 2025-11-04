@@ -2,12 +2,10 @@
  * @api {post} /create Create Long Link
  */
 
-// Path: functions/create.js
-
 // ========== 预设配置区域 ==========
 const PRESET_CONFIG = {
     char: 'c',           // 预设重复的字符
-    minLength: 1000,      // 最小长度
+    minLength: 1000,     // 最小长度
     maxLength: 2000      // 最大长度
 };
 // ==================================
@@ -34,7 +32,7 @@ export async function onRequest(context) {
     const originurl = new URL(request.url);
     const clientIP = request.headers.get("x-forwarded-for") || request.headers.get("clientIP");
     const userAgent = request.headers.get("user-agent");
-    const origin = `${originurl.protocol}//${originurl.hostname}`
+    const origin = `${originurl.protocol}//${originurl.hostname}`;
 
     const options = {
         timeZone: 'Asia/Shanghai',
@@ -49,7 +47,7 @@ export async function onRequest(context) {
     const timedata = new Date();
     const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
     
-    const { url, expireDays } = await request.json();
+    const { url } = await request.json();
     
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
@@ -64,23 +62,22 @@ export async function onRequest(context) {
         return Response.json({ message: 'Illegal format: url.' }, {
             headers: corsHeaders,
             status: 400
-        })
+        });
     }
 
     try {
         // 检查目标 url 是否已存在
-        const existSlug = await env.DB.prepare(`SELECT slug as existSlug, expire_time FROM links where url = ?`).bind(url).first()
+        const existSlug = await env.DB.prepare(`SELECT slug as existSlug FROM links where url = ?`).bind(url).first();
 
         if (existSlug) {
             return Response.json({ 
                 slug: existSlug.existSlug, 
                 link: `${origin}/${existSlug.existSlug}`,
-                length: existSlug.existSlug.length,
-                expireTime: existSlug.expire_time
+                length: existSlug.existSlug.length
             }, {
                 headers: corsHeaders,
                 status: 200
-            })
+            });
         }
 
         const bodyUrl = new URL(url);
@@ -89,7 +86,7 @@ export async function onRequest(context) {
             return Response.json({ message: 'You cannot create a link to the same domain.' }, {
                 headers: corsHeaders,
                 status: 400
-            })
+            });
         }
 
         // 使用预设配置生成长字符串 slug
@@ -112,30 +109,22 @@ export async function onRequest(context) {
             attempts++;
         }
 
-        // 计算过期时间
-        let formattedExpireDate = null;
-        if (expireDays && expireDays > 0) {
-            const expireDate = new Date();
-            expireDate.setDate(expireDate.getDate() + parseInt(expireDays));
-            formattedExpireDate = new Intl.DateTimeFormat('zh-CN', options).format(expireDate);
-        }
-
-        const info = await env.DB.prepare(`INSERT INTO links (url, slug, ip, status, ua, create_time, expire_time) 
-        VALUES (?, ?, ?, 1, ?, ?, ?)`).bind(url, slug, clientIP, userAgent, formattedDate, formattedExpireDate).run()
+        // 插入数据库（不再包含 expire_time）
+        const info = await env.DB.prepare(`INSERT INTO links (url, slug, ip, status, ua, create_time) 
+        VALUES (?, ?, ?, 1, ?, ?)`).bind(url, slug, clientIP, userAgent, formattedDate).run();
 
         return Response.json({ 
             slug: slug, 
             link: `${origin}/${slug}`,
-            length: slug.length,
-            expireTime: formattedExpireDate
+            length: slug.length
         }, {
             headers: corsHeaders,
             status: 200
-        })
+        });
     } catch (e) {
         return Response.json({ message: e.message }, {
             headers: corsHeaders,
             status: 500
-        })
+        });
     }
 }
