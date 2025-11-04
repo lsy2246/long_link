@@ -4,16 +4,15 @@
 
 // ========== 预设配置区域 ==========
 const PRESET_CONFIG = {
-    chars: 'Cc',         // 预设字符集（将被随机组合）
+    chars: [ 'c','ᴄ'],   // 预设字符数组（将被随机组合）
     minLength: 1000,     // 最小长度
     maxLength: 2000      // 最大长度
 };
 // ==================================
 
-// 从字符集中随机生成长字符串
-function generateLongString(chars, minLength, maxLength) {
+// 从字符数组中随机生成长字符串
+function generateLongString(charArray, minLength, maxLength) {
     const length = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
-    const charArray = chars.split('');
     let result = '';
     
     for (let i = 0; i < length; i++) {
