@@ -150,7 +150,6 @@
         display: block;
         width: 100%;
         padding: 0.65rem 1rem;
-        margin-bottom: 0.5rem;
         border: 1px solid var(--border-color);
         border-radius: 0.5rem;
         box-sizing: border-box;
@@ -170,6 +169,7 @@
       input:read-only {
         background: #f8f9fa;
         cursor: pointer;
+        padding-right: 5.5rem;
       }
 
       input:read-only:hover {
@@ -206,6 +206,8 @@
         cursor: pointer;
         transition: all 0.3s;
         font-weight: 500;
+        z-index: 10;
+        white-space: nowrap;
       }
 
       .copy-btn:hover {
@@ -216,7 +218,7 @@
         background: #38d9a9;
       }
 
-      button {
+      button.submit-btn {
         appearance: none;
         display: flex;
         justify-content: center;
@@ -236,20 +238,20 @@
         transition: all 0.3s;
       }
 
-      button:hover {
+      button.submit-btn:hover {
         border-color: var(--color-primary-dark);
         background: var(--color-primary-dark);
         transform: translateY(-1px);
         box-shadow: 0 4px 12px var(--color-primary-alpha);
       }
 
-      button:focus {
+      button.submit-btn:focus {
         box-shadow: 0 0 0 0.25rem var(--color-primary-alpha);
         border-color: var(--color-primary);
         outline: 0;
       }
 
-      button:disabled {
+      button.submit-btn:disabled {
         background: var(--color-primary);
         border-color: var(--color-primary);
         opacity: 0.6;
@@ -257,7 +259,7 @@
         transform: none;
       }
 
-      button.loading::before {
+      button.submit-btn.loading::before {
         content: "";
         display: inline-block;
         margin-right: 0.5rem;
@@ -361,15 +363,21 @@
           font-size: 1.5rem;
         }
 
+        .input-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+
+        input:read-only {
+          padding-right: 1rem;
+          margin-bottom: 0.5rem;
+        }
+
         .copy-btn {
           position: static;
           transform: none;
           width: 100%;
-          margin-top: 0.5rem;
-        }
-
-        input {
-          padding-right: 1rem;
+          padding: 0.65rem 1rem;
         }
       }
     </style>
@@ -415,6 +423,7 @@
       <div
         class="form-group"
         x-show="generatedLink"
+        x-transition
       >
         <label for="generatedUrl">延续后的链接</label>
         <div class="input-wrapper">
@@ -436,6 +445,7 @@
       </div>
 
       <button
+        class="submit-btn"
         :class="{ loading }"
         :disabled="loading || isValidated()"
         @click="submit()"
@@ -463,7 +473,7 @@
 
         copyToClipboard(input) {
           input.select();
-          input.setSelectionRange(0, 99999); // 移动端兼容
+          input.setSelectionRange(0, 99999);
 
           try {
             const successful = document.execCommand("copy");
@@ -474,7 +484,6 @@
                 message: "✓ 链接已复制到剪贴板！",
               };
 
-              // 3秒后恢复按钮状态
               setTimeout(() => {
                 this.copied = false;
               }, 3000);
@@ -498,6 +507,7 @@
           this.loading = true;
           this.generatedLink = "";
           this.generatedLength = 0;
+          this.copied = false;
 
           fetch("/create", {
             method: "post",

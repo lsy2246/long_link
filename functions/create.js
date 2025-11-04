@@ -4,16 +4,24 @@
 
 // ========== 预设配置区域 ==========
 const PRESET_CONFIG = {
-    char: 'c',           // 预设重复的字符
+    chars: 'Cc',         // 预设字符集（将被随机组合）
     minLength: 1000,     // 最小长度
     maxLength: 2000      // 最大长度
 };
 // ==================================
 
-// 生成指定字符重复的长字符串
-function generateLongString(char, minLength, maxLength) {
+// 从字符集中随机生成长字符串
+function generateLongString(chars, minLength, maxLength) {
     const length = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
-    return char.repeat(length);
+    const charArray = chars.split('');
+    let result = '';
+    
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * charArray.length);
+        result += charArray[randomIndex];
+    }
+    
+    return result;
 }
 
 export async function onRequest(context) {
@@ -89,9 +97,9 @@ export async function onRequest(context) {
             });
         }
 
-        // 使用预设配置生成长字符串 slug
+        // 使用预设配置生成随机字符组合的 slug
         let slug = generateLongString(
-            PRESET_CONFIG.char, 
+            PRESET_CONFIG.chars, 
             PRESET_CONFIG.minLength, 
             PRESET_CONFIG.maxLength
         );
@@ -101,7 +109,7 @@ export async function onRequest(context) {
         let attempts = 0;
         while (existingSlug && attempts < 10) {
             slug = generateLongString(
-                PRESET_CONFIG.char, 
+                PRESET_CONFIG.chars, 
                 PRESET_CONFIG.minLength, 
                 PRESET_CONFIG.maxLength
             );
@@ -109,7 +117,7 @@ export async function onRequest(context) {
             attempts++;
         }
 
-        // 插入数据库（不再包含 expire_time）
+        // 插入数据库
         const info = await env.DB.prepare(`INSERT INTO links (url, slug, ip, status, ua, create_time) 
         VALUES (?, ?, ?, 1, ?, ?)`).bind(url, slug, clientIP, userAgent, formattedDate).run();
 
