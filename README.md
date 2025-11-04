@@ -2,9 +2,7 @@
 
 **简介**：使用 Cloudflare Pages 创建超长链接生成器
 
-**我的演示站点**：[https://link.lsy22.com/](https://link.lsy22.com/)
-
-**原作者的演示站点**：[https://d.131213.xyz/](https://d.131213.xyz/)
+**我的演示站点**：[https://cccccccccccccccccccccccccccccccccccccccccccccccccccccc.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.cc/](https://cccccccccccccccccccccccccccccccccccccccccccccccccccccc.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.cc/)
 
 ## 安装教程：使用 Cloudflare Pages 部署
 
@@ -72,33 +70,3 @@ const PRESET_CONFIG = {
 };
 // ==================================
 ```
-
-**10. API 接口**
-
-#### 创建长链接
-
-```bash
-# POST /create
-curl -X POST -H "Content-Type: application/json" -d '{"url":"https://igdu.xyz"}' https://link.lsy22.com/create
-
-```
-
-> 响应结果：
-
-```json
-{
-  "slug": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-  "link": "https://link.lsy22.com/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-  "length": 100
-}
-```
-
----
-
-## 主要改动说明
-
-- 将短链接服务改为**长链接生成器**
-- 生成 100-1000 个相同字符（默认为 'c'）的超长链接
-- 在 `create.js` 中预设配置参数，无需前端设置
-- 简化前端界面，移除自定义 slug 选项
-- 适配你的域名：link.lsy22.com
