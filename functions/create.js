@@ -8,7 +8,7 @@
 const PRESET_CONFIG = {
     char: 'c',           // 预设重复的字符
     minLength: 1000,      // 最小长度
-    maxLength: 10000      // 最大长度
+    maxLength: 2000      // 最大长度
 };
 // ==================================
 
