@@ -150,7 +150,7 @@
         display: block;
         width: 100%;
         padding: 0.65rem 1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
         border: 1px solid var(--border-color);
         border-radius: 0.5rem;
         box-sizing: border-box;
@@ -167,6 +167,15 @@
         outline: 0;
       }
 
+      input:read-only {
+        background: #f8f9fa;
+        cursor: pointer;
+      }
+
+      input:read-only:hover {
+        border-color: var(--color-primary);
+      }
+
       label {
         display: block;
         margin-bottom: 0.5rem;
@@ -177,6 +186,34 @@
 
       .form-group {
         margin-bottom: 1.5rem;
+      }
+
+      .input-wrapper {
+        position: relative;
+      }
+
+      .copy-btn {
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.35rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 500;
+      }
+
+      .copy-btn:hover {
+        background: var(--color-primary-dark);
+      }
+
+      .copy-btn.copied {
+        background: #38d9a9;
       }
 
       button {
@@ -276,6 +313,18 @@
         margin-bottom: 2rem;
         text-align: center;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        animation: slideDown 0.4s ease-out;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       .info-box .info-label {
@@ -311,6 +360,17 @@
         .info-box strong {
           font-size: 1.5rem;
         }
+
+        .copy-btn {
+          position: static;
+          transform: none;
+          width: 100%;
+          margin-top: 0.5rem;
+        }
+
+        input {
+          padding-right: 1rem;
+        }
       }
     </style>
   </head>
@@ -344,19 +404,41 @@
       </div>
 
       <div class="form-group">
-        <label for="url">目标网址</label>
+        <label for="originalUrl">原始网址</label>
         <input
-          id="url"
+          id="originalUrl"
           placeholder="输入你的目标网址..."
-          x-model="url"
-          x-ref="url"
+          x-model="originalUrl"
         />
+      </div>
+
+      <div
+        class="form-group"
+        x-show="generatedLink"
+      >
+        <label for="generatedUrl">延续后的链接</label>
+        <div class="input-wrapper">
+          <input
+            id="generatedUrl"
+            readonly
+            x-model="generatedLink"
+            x-ref="generatedUrl"
+            @click="copyToClipboard($refs.generatedUrl)"
+          />
+          <button
+            type="button"
+            class="copy-btn"
+            :class="{ copied: copied }"
+            @click="copyToClipboard($refs.generatedUrl)"
+            x-text="copied ? '✓ 已复制' : '复制'"
+          ></button>
+        </div>
       </div>
 
       <button
         :class="{ loading }"
         :disabled="loading || isValidated()"
-        @click="submit($refs, $nextTick)"
+        @click="submit()"
       >
         <span x-show="!loading">Continue →</span>
         <span x-show="loading">持续生成中...</span>
@@ -368,17 +450,42 @@
     <script src="asset/js/alpine.js"></script>
     <script>
       const app = {
-        url: "",
+        originalUrl: "",
+        generatedLink: "",
         generatedLength: 0,
         alert: null,
         loading: false,
+        copied: false,
 
         isValidated() {
-          return !/^https?:\/\/.{3,}/.test(this.url);
+          return !/^https?:\/\/.{3,}/.test(this.originalUrl);
         },
 
-        submit($refs, $nextTick) {
-          if (!this.url) {
+        copyToClipboard(input) {
+          input.select();
+          input.setSelectionRange(0, 99999); // 移动端兼容
+
+          try {
+            const successful = document.execCommand("copy");
+            if (successful) {
+              this.copied = true;
+              this.alert = {
+                type: "success",
+                message: "✓ 链接已复制到剪贴板！",
+              };
+
+              // 3秒后恢复按钮状态
+              setTimeout(() => {
+                this.copied = false;
+              }, 3000);
+            }
+          } catch (err) {
+            this.alert = { type: "error", message: "复制失败，请手动复制" };
+          }
+        },
+
+        submit() {
+          if (!this.originalUrl) {
             this.alert = { type: "error", message: "请先输入目标网址" };
             return;
           }
@@ -389,11 +496,13 @@
 
           this.alert = null;
           this.loading = true;
+          this.generatedLink = "";
+          this.generatedLength = 0;
 
           fetch("/create", {
             method: "post",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ url: this.url }),
+            body: JSON.stringify({ url: this.originalUrl }),
           })
             .then((res) => res.json())
             .then((res) => {
@@ -403,19 +512,12 @@
                 return;
               }
 
-              this.url = res.link;
+              this.generatedLink = res.link;
               this.generatedLength = res.length || 0;
-
-              $nextTick(() => {
-                $refs.url.select();
-                const successful = document.execCommand("copy");
-                this.alert = {
-                  type: "success",
-                  message: successful
-                    ? "✓ 链接已复制，继续使用吧！"
-                    : "✓ 生成成功，请手动复制",
-                };
-              });
+              this.alert = {
+                type: "success",
+                message: "✓ 链接生成成功！点击下方链接复制",
+              };
             })
             .catch((e) => {
               this.loading = false;
