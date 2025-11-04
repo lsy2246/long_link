@@ -77,9 +77,10 @@ export async function onRequest(context) {
         const existSlug = await env.DB.prepare(`SELECT slug as existSlug FROM links where url = ?`).bind(url).first();
 
         if (existSlug) {
+            // ⚙️ 这里修正：返回时编码 slug，防止 Unicode URL 出错
             return Response.json({ 
                 slug: existSlug.existSlug, 
-                link: `${origin}/${existSlug.existSlug}`,
+                link: `${origin}/${encodeURIComponent(existSlug.existSlug)}`,
                 length: existSlug.existSlug.length
             }, {
                 headers: corsHeaders,
@@ -120,9 +121,10 @@ export async function onRequest(context) {
         const info = await env.DB.prepare(`INSERT INTO links (url, slug, ip, status, ua, create_time) 
         VALUES (?, ?, ?, 1, ?, ?)`).bind(url, slug, clientIP, userAgent, formattedDate).run();
 
+        // ⚙️ 这里修正：返回时编码 slug
         return Response.json({ 
             slug: slug, 
-            link: `${origin}/${slug}`,
+            link: `${origin}/${encodeURIComponent(slug)}`,
             length: slug.length
         }, {
             headers: corsHeaders,

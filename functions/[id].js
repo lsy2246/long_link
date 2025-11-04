@@ -5,10 +5,13 @@ import page404 from './404.html';
 
 export async function onRequestGet(context) {
     const { request, env, params } = context;
+
+    // ⚙️ 修正点：对 URL 参数进行解码
+    const slug = decodeURIComponent(params.id);
+
     const clientIP = request.headers.get("x-forwarded-for") || request.headers.get("clientIP");
     const userAgent = request.headers.get("user-agent");
     const Referer = request.headers.get('Referer') || "Referer";
-    const originurl = new URL(request.url);
     const options = {
         timeZone: 'Asia/Shanghai',
         year: 'numeric',
@@ -22,8 +25,6 @@ export async function onRequestGet(context) {
     const timedata = new Date();
     const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
 
-    const slug = params.id;
-
     const linkData = await env.DB.prepare(`SELECT url FROM links where slug = ?`).bind(slug).first();
 
     if (!linkData) {
@@ -35,9 +36,8 @@ export async function onRequestGet(context) {
         });
     }
 
-    // 直接跳转，不检查过期
     try {
-        const info = await env.DB.prepare(`INSERT INTO logs (url, slug, ip, referer, ua, create_time) 
+        await env.DB.prepare(`INSERT INTO logs (url, slug, ip, referer, ua, create_time) 
         VALUES (?, ?, ?, ?, ?, ?)`).bind(linkData.url, slug, clientIP, Referer, userAgent, formattedDate).run();
         
         return Response.redirect(linkData.url, 302);
