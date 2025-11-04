@@ -74,13 +74,14 @@
         transition: opacity 0.3s;
       }
 
-      input {
+      input,
+      select {
         -webkit-appearance: none;
         appearance: none;
         display: block;
         width: 100%;
         padding: 0.5rem 1rem;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
         border: 1px solid var(--border-color);
         border-radius: 0.25rem;
         box-sizing: border-box;
@@ -88,12 +89,26 @@
         line-height: inherit;
         font-size: 1rem;
         transition: border 0.3s, box-shadow 0.3s;
+        background: white;
       }
 
-      input:focus {
+      input:focus,
+      select:focus {
         box-shadow: 0 0 0 0.25rem var(--color-primary-alpha);
         border-color: var(--color-primary);
         outline: 0;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--body-color);
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
       }
 
       button {
@@ -187,12 +202,25 @@
         padding: 1rem;
         margin-bottom: 2rem;
         font-size: 0.9rem;
-        text-align: center;
       }
 
       .info-box strong {
         color: var(--color-primary);
         font-size: 1.2rem;
+      }
+
+      .info-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      }
+
+      .info-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .info-label {
+        opacity: 0.7;
       }
 
       @keyframes rotate {
@@ -221,14 +249,46 @@
         class="info-box"
         x-show="generatedLength"
       >
-        <strong x-text="generatedLength"></strong> 个字符 ✨
+        <div class="info-item">
+          <span class="info-label">字符长度：</span>
+          <strong x-text="generatedLength"></strong>
+        </div>
+        <div
+          class="info-item"
+          x-show="expireInfo"
+        >
+          <span class="info-label">有效期：</span>
+          <span x-text="expireInfo"></span>
+        </div>
       </div>
 
-      <input
-        placeholder="输入你的目标网址..."
-        x-model="url"
-        x-ref="url"
-      />
+      <div class="form-group">
+        <label for="url">目标网址</label>
+        <input
+          id="url"
+          placeholder="输入你的目标网址..."
+          x-model="url"
+          x-ref="url"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="expireDays">链接有效期</label>
+        <select
+          id="expireDays"
+          x-model="expireDays"
+        >
+          <option value="0">永久有效</option>
+          <option value="1">1天</option>
+          <option value="3">3天</option>
+          <option value="7">7天</option>
+          <option value="15">15天</option>
+          <option value="30">30天</option>
+          <option value="90">90天</option>
+          <option value="180">180天</option>
+          <option value="365">365天</option>
+        </select>
+      </div>
 
       <button
         :class="{ loading }"
@@ -245,7 +305,9 @@
     <script>
       const app = {
         url: "",
+        expireDays: "7", // 默认7天
         generatedLength: 0,
+        expireInfo: "",
         alert: null,
         loading: false,
         isValidated() {
@@ -267,7 +329,10 @@
           fetch("/create", {
             method: "post",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ url: this.url }),
+            body: JSON.stringify({
+              url: this.url,
+              expireDays: parseInt(this.expireDays),
+            }),
           })
             .then((res) => res.json())
             .then((res) => {
@@ -279,6 +344,13 @@
 
               this.url = res.link;
               this.generatedLength = res.length || 0;
+
+              // 显示有效期信息
+              if (res.expireTime) {
+                this.expireInfo = `${res.expireTime}`;
+              } else {
+                this.expireInfo = "永久有效";
+              }
 
               $nextTick(() => {
                 $refs.url.select();

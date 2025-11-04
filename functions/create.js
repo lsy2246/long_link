@@ -49,7 +49,7 @@ export async function onRequest(context) {
     const timedata = new Date();
     const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
     
-    const { url } = await request.json();
+    const { url, expireDays } = await request.json();
     
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
@@ -69,13 +69,14 @@ export async function onRequest(context) {
 
     try {
         // 检查目标 url 是否已存在
-        const existSlug = await env.DB.prepare(`SELECT slug as existSlug FROM links where url = ?`).bind(url).first()
+        const existSlug = await env.DB.prepare(`SELECT slug as existSlug, expire_time FROM links where url = ?`).bind(url).first()
 
         if (existSlug) {
             return Response.json({ 
                 slug: existSlug.existSlug, 
                 link: `${origin}/${existSlug.existSlug}`,
-                length: existSlug.existSlug.length
+                length: existSlug.existSlug.length,
+                expireTime: existSlug.expire_time
             }, {
                 headers: corsHeaders,
                 status: 200
@@ -111,13 +112,22 @@ export async function onRequest(context) {
             attempts++;
         }
 
-        const info = await env.DB.prepare(`INSERT INTO links (url, slug, ip, status, ua, create_time) 
-        VALUES (?, ?, ?, 1, ?, ?)`).bind(url, slug, clientIP, userAgent, formattedDate).run()
+        // 计算过期时间
+        let formattedExpireDate = null;
+        if (expireDays && expireDays > 0) {
+            const expireDate = new Date();
+            expireDate.setDate(expireDate.getDate() + parseInt(expireDays));
+            formattedExpireDate = new Intl.DateTimeFormat('zh-CN', options).format(expireDate);
+        }
+
+        const info = await env.DB.prepare(`INSERT INTO links (url, slug, ip, status, ua, create_time, expire_time) 
+        VALUES (?, ?, ?, 1, ?, ?, ?)`).bind(url, slug, clientIP, userAgent, formattedDate, formattedExpireDate).run()
 
         return Response.json({ 
             slug: slug, 
             link: `${origin}/${slug}`,
-            length: slug.length 
+            length: slug.length,
+            expireTime: formattedExpireDate
         }, {
             headers: corsHeaders,
             status: 200
