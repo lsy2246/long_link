@@ -1,19 +1,21 @@
 /**
- * @api {post} /create Create
+ * @api {post} /create Create Long Link
  */
 
 // Path: functions/create.js
 
-function generateRandomString(length) {
-    const characters = '1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let result = '';
+// ========== 预设配置区域 ==========
+const PRESET_CONFIG = {
+    char: 'c',           // 预设重复的字符
+    minLength: 100,      // 最小长度
+    maxLength: 1000      // 最大长度
+};
+// ==================================
 
-    for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        result += characters.charAt(randomIndex);
-    }
-
-    return result;
+// 生成指定字符重复的长字符串
+function generateLongString(char, minLength, maxLength) {
+    const length = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
+    return char.repeat(length);
 }
 
 export async function onRequest(context) {
@@ -23,11 +25,11 @@ export async function onRequest(context) {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Max-Age': '86400', // 24小时
+                'Access-Control-Max-Age': '86400',
             },
         });
     }
-// export async function onRequestPost(context) {
+
     const { request, env } = context;
     const originurl = new URL(request.url);
     const clientIP = request.headers.get("x-forwarded-for") || request.headers.get("clientIP");
@@ -46,99 +48,84 @@ export async function onRequest(context) {
     };
     const timedata = new Date();
     const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
-    const { url, slug } = await request.json();
+    
+    const { url } = await request.json();
+    
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Max-Age': '86400', // 24 hours
+        'Access-Control-Max-Age': '86400',
     };
+    
     if (!url) return Response.json({ message: 'Missing required parameter: url.' });
 
     // url格式检查
     if (!/^https?:\/\/.{3,}/.test(url)) {
-        return Response.json({ message: 'Illegal format: url.' },{
+        return Response.json({ message: 'Illegal format: url.' }, {
             headers: corsHeaders,
             status: 400
         })
     }
 
-    // 自定义slug长度检查 2<slug<10 是否不以文件后缀结尾
-    if (slug && (slug.length < 2 || slug.length > 10 || /.+\.[a-zA-Z]+$/.test(slug))) {
-        return Response.json({ message: 'Illegal length: slug, (>= 2 && <= 10), or not ending with a file extension.' },{
-            headers: corsHeaders,
-            status: 400
-        
-        });
-    }
-
-
-
-
     try {
+        // 检查目标 url 是否已存在
+        const existSlug = await env.DB.prepare(`SELECT slug as existSlug FROM links where url = ?`).bind(url).first()
 
-        // 如果自定义slug
-        if (slug) {
-            const existUrl = await env.DB.prepare(`SELECT url as existUrl FROM links where slug = '${slug}'`).first()
-
-            // url & slug 是一样的。
-            if (existUrl && existUrl.existUrl === url) {
-                return Response.json({ slug, link: `${origin}/${slug2}` },{
-                    headers: corsHeaders,
-                    status: 200
-                })
-            }
-
-            // slug 已存在
-            if (existUrl) {
-                return Response.json({ message: 'Slug already exists.' },{
-                    headers: corsHeaders,
-                    status: 200  
-                })
-            }
-        }
-
-        // 目标 url 已存在
-        const existSlug = await env.DB.prepare(`SELECT slug as existSlug FROM links where url = '${url}'`).first()
-
-        // url 存在且没有自定义 slug
-        if (existSlug && !slug) {
-            return Response.json({ slug: existSlug.existSlug, link: `${origin}/${existSlug.existSlug}` },{
+        if (existSlug) {
+            return Response.json({ 
+                slug: existSlug.existSlug, 
+                link: `${origin}/${existSlug.existSlug}`,
+                length: existSlug.existSlug.length
+            }, {
                 headers: corsHeaders,
                 status: 200
-            
             })
         }
+
         const bodyUrl = new URL(url);
 
         if (bodyUrl.hostname === originurl.hostname) {
-            return Response.json({ message: 'You cannot shorten a link to the same domain.' }, {
+            return Response.json({ message: 'You cannot create a link to the same domain.' }, {
                 headers: corsHeaders,
                 status: 400
             })
         }
 
-        // 生成随机slug
-        const slug2 = slug ? slug : generateRandomString(4);
-        // console.log('slug', slug2);
+        // 使用预设配置生成长字符串 slug
+        let slug = generateLongString(
+            PRESET_CONFIG.char, 
+            PRESET_CONFIG.minLength, 
+            PRESET_CONFIG.maxLength
+        );
+        
+        // 确保 slug 唯一（如果碰撞则重新生成）
+        let existingSlug = await env.DB.prepare(`SELECT slug FROM links where slug = ?`).bind(slug).first();
+        let attempts = 0;
+        while (existingSlug && attempts < 10) {
+            slug = generateLongString(
+                PRESET_CONFIG.char, 
+                PRESET_CONFIG.minLength, 
+                PRESET_CONFIG.maxLength
+            );
+            existingSlug = await env.DB.prepare(`SELECT slug FROM links where slug = ?`).bind(slug).first();
+            attempts++;
+        }
 
         const info = await env.DB.prepare(`INSERT INTO links (url, slug, ip, status, ua, create_time) 
-        VALUES ('${url}', '${slug2}', '${clientIP}',1, '${userAgent}', '${formattedDate}')`).run()
+        VALUES (?, ?, ?, 1, ?, ?)`).bind(url, slug, clientIP, userAgent, formattedDate).run()
 
-        return Response.json({ slug: slug2, link: `${origin}/${slug2}` },{
+        return Response.json({ 
+            slug: slug, 
+            link: `${origin}/${slug}`,
+            length: slug.length 
+        }, {
             headers: corsHeaders,
             status: 200
         })
     } catch (e) {
-        // console.log(e);
-        return Response.json({ message: e.message },{
+        return Response.json({ message: e.message }, {
             headers: corsHeaders,
             status: 500
         })
     }
-
-
-
 }
-
-
-
